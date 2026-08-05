@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capital Humano | Analytics v6.1</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0f172a;
+            --ink-2: #1e293b;
+            --muted: #64748b;
+            --muted-2: #94a3b8;
+            --line: #e2e8f0;
+            --line-soft: #edf2f7;
+            --bg: #f4f7fb;
+            --surface: rgba(255,255,255,.94);
+            --white: #ffffff;
+            --blue: #2563eb;
+            --blue-2: #3b82f6;
+            --blue-soft: #eff6ff;
+            --green: #059669;
+            --green-soft: #ecfdf5;
+            --red: #dc2626;
+            --red-soft: #fef2f2;
+            --amber: #d97706;
+            --amber-soft: #fffbeb;
+            --violet: #7c3aed;
+            --violet-soft: #f5f3ff;
+            --shadow-1: 0 8px 28px rgba(15,23,42,.07);
+            --shadow-2: 0 20px 60px rgba(15,23,42,.13);
+            --radius: 20px;
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 8% -4%, rgba(37,99,235,.10), transparent 26%),
+                radial-gradient(circle at 96% 10%, rgba(124,58,237,.07), transparent 25%),
+                linear-gradient(180deg, #f8fafc 0%, var(--bg) 100%);
+        }
+        body.modal-open { overflow: hidden; }
+        button, select, label { font: inherit; }
+        button { color: inherit; }
+
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 13px 30px;
+            color: #fff;
+            background: rgba(15,23,42,.95);
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            box-shadow: 0 12px 36px rgba(15,23,42,.14);
+            backdrop-filter: blur(18px);
+        }
+        .brand { display: flex; align-items: center; gap: 11px; min-width: max-content; }
+        .brand-mark {
+            width: 36px; height: 36px; border-radius: 12px;
+            display: grid; place-items: center;
+            font-size: .74rem; font-weight: 800; letter-spacing: .03em;
+            background: linear-gradient(135deg, #60a5fa, #2563eb 58%, #1d4ed8);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 8px 22px rgba(37,99,235,.28);
+        }
+        .brand-copy strong { display: block; font-size: .78rem; letter-spacing: .10em; }
+        .brand-copy span { display: block; margin-top: 2px; color: #94a3b8; font-size: .56rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+        .controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+        .control, .upload-btn {
+            min-height: 38px;
+            border-radius: 11px;
+            font-size: .68rem;
+            font-weight: 800;
+            letter-spacing: .015em;
+            cursor: pointer;
+            transition: .18s ease;
+        }
+        .control {
+            min-width: 140px;
+            padding: 8px 30px 8px 11px;
+            color: #fff;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.15);
+            outline: none;
+        }
+        .control:hover, .control:focus { background: rgba(255,255,255,.13); border-color: rgba(255,255,255,.27); }
+        .control option { color: var(--ink); background: #fff; }
+        .upload-btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 9px 15px;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,.10);
+            background: linear-gradient(135deg, var(--blue-2), var(--blue));
+            box-shadow: 0 8px 20px rgba(37,99,235,.22);
+        }
+        .upload-btn:hover { transform: translateY(-1px); box-shadow: 0 11px 26px rgba(37,99,235,.30); }
+
+        .content { max-width: 1500px; margin: auto; padding: 32px 32px 56px; }
+        .hero { min-height: calc(100vh - 98px); display: grid; place-items: center; padding: 24px 10px; }
+        .hero-card {
+            width: min(720px, 100%);
+            padding: 54px 36px;
+            text-align: center;
+            border: 1px solid rgba(226,232,240,.92);
+            border-radius: 30px;
+            background: rgba(255,255,255,.78);
+            box-shadow: 0 28px 80px rgba(15,23,42,.09);
+            backdrop-filter: blur(14px);
+        }
+        .hero-icon {
+            width: 78px; height: 78px; margin: 0 auto 18px; border-radius: 24px;
+            display: grid; place-items: center;
+            font-size: 2rem;
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            border: 1px solid #dbeafe;
+            box-shadow: 0 14px 30px rgba(37,99,235,.10);
+        }
+        .hero h1 { margin: 0; font-size: clamp(1.45rem, 3vw, 2.2rem); letter-spacing: -.045em; }
+        .hero p { margin: 11px 0 0; color: var(--muted); font-size: .84rem; font-weight: 600; }
+        .hero-rule {
+            display: inline-flex; align-items: center; gap: 8px;
+            margin-top: 24px; padding: 8px 11px; border-radius: 999px;
+            color: #475569; background: #f8fafc; border: 1px solid var(--line);
+            font-size: .63rem; font-weight: 800;
+        }
+        .hero-rule i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+        .error-box { margin: 18px auto 0; max-width: 580px; padding: 11px 13px; border-radius: 12px; color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; font-size: .68rem; font-weight: 700; text-align: left; }
+
+        .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+        .eyebrow { display: inline-flex; align-items: center; gap: 7px; color: var(--blue); font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+        .eyebrow::before { content: ''; width: 18px; height: 2px; border-radius: 99px; background: var(--blue); }
+        .page-title { margin: 6px 0 0; font-size: clamp(1.45rem, 2.5vw, 2.1rem); line-height: 1.1; letter-spacing: -.045em; }
+        .page-sub { margin: 8px 0 0; color: var(--muted); font-size: .75rem; font-weight: 650; }
+        .head-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+        .head-chip {
+            padding: 8px 10px; border-radius: 12px;
+            color: var(--muted); background: rgba(255,255,255,.78); border: 1px solid var(--line);
+            box-shadow: var(--shadow-1); font-size: .62rem; font-weight: 750; white-space: nowrap;
+        }
+        .head-chip b { color: var(--ink); }
+        .head-chip.hierarchy { color: #6d28d9; background: #faf5ff; border-color: #ede9fe; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; align-items: stretch; }
+        .card {
+            --status: #94a3b8;
+            position: relative;
+            min-height: 244px;
+            padding: 18px;
+            overflow: hidden;
+            border-radius: var(--radius);
+            border: 1px solid rgba(226,232,240,.98);
+            background: var(--surface);
+            box-shadow: var(--shadow-1);
+            cursor: pointer;
+            isolation: isolate;
+            transition: transform .20s ease, border-color .20s ease, box-shadow .20s ease, background .20s ease;
+        }
+        .card::before {
+            content: '';
+            position: absolute; inset: 0 0 auto 0; height: 3px;
+            background: linear-gradient(90deg, var(--status), color-mix(in srgb, var(--status) 45%, transparent));
+            opacity: .9;
+        }
+        .card::after {
+            content: '';
+            position: absolute; right: -65px; top: -72px;
+            width: 165px; height: 165px; border-radius: 50%;
+            background: var(--status); opacity: .035; z-index: -1;
+        }
+        .card-green { --status: #10b981; }
+        .card-red { --status: #ef4444; }
+        .card-yellow { --status: #f59e0b; }
+        .card-gray { --status: #94a3b8; }
+        .card.has-hierarchy { border-color: #ddd6fe; }
+        .card.has-hierarchy::after { background: var(--violet); opacity: .045; }
+        .card:hover { transform: translateY(-4px); border-color: #cbd5e1; box-shadow: var(--shadow-2); background: #fff; }
+        .card:focus-visible { outline: 3px solid rgba(37,99,235,.22); outline-offset: 3px; }
+
+        .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .kpi-title {
+            max-width: calc(100% - 42px);
+            min-height: 36px;
+            color: #64748b;
+            font-size: .66rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            line-height: 1.35;
+            text-transform: uppercase;
+        }
+        .open-btn {
+            flex: 0 0 32px; width: 32px; height: 32px; border-radius: 10px;
+            display: grid; place-items: center;
+            color: #64748b; background: #f8fafc; border: 1px solid var(--line);
+            font-size: .85rem; transition: .18s ease;
+        }
+        .card:hover .open-btn { color: #1d4ed8; background: #eff6ff; border-color: #dbeafe; transform: translate(1px,-1px); }
+
+        .variation {
+            display: inline-flex; align-items: center; gap: 4px;
+            width: fit-content; margin: 8px 0 1px; padding: 5px 8px; border-radius: 999px;
+            font-size: .64rem; font-weight: 800; background: #f8fafc;
+        }
+        .variation small { color: var(--muted-2); font-size: .57rem; }
+        .trend-good { color: var(--green) !important; background: var(--green-soft); }
+        .trend-bad { color: var(--red) !important; background: var(--red-soft); }
+        .value-row { display: flex; align-items: baseline; gap: 8px; margin: 9px 0 6px; min-width: 0; }
+        .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(1.72rem, 2.45vw, 2.3rem);
+            font-weight: 700; line-height: 1; letter-spacing: -.055em;
+            font-variant-numeric: tabular-nums lining-nums;
+            white-space: nowrap;
+        }
+        .people { color: var(--muted); font-size: .70rem; font-weight: 750; }
+        .prev { min-height: 17px; color: var(--muted); font-size: .64rem; font-weight: 650; }
+
+        .mini-trend { height: 32px; display: flex; align-items: flex-end; gap: 3px; margin: 9px 0 10px; }
+        .mini-bar { flex: 1 1 0; min-width: 3px; max-width: 18px; border-radius: 3px 3px 1px 1px; background: #cbd5e1; opacity: .62; transition: .18s ease; }
+        .mini-bar.current { background: var(--blue); opacity: .90; }
+        .card:hover .mini-bar { opacity: .82; }
+
+        .status-line { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
+        .pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 5px 9px; border-radius: 999px;
+            border: 1px solid transparent;
+            font-size: .56rem; font-weight: 800; letter-spacing: .025em; text-transform: uppercase;
+        }
+        .pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .pill-green { color: var(--green); background: var(--green-soft); border-color: #d1fae5; }
+        .pill-red { color: var(--red); background: var(--red-soft); border-color: #fee2e2; }
+        .pill-yellow { color: var(--amber); background: var(--amber-soft); border-color: #fef3c7; }
+        .pill-gray { color: #64748b; background: #f8fafc; border-color: var(--line); }
+        .detail-link { color: #94a3b8; font-size: .56rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+        .detail-link.hierarchy { color: #7c3aed; }
+
+        .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 11px; padding-top: 10px; border-top: 1px solid #eef2f7; }
+        .meta span { display: block; min-width: 0; }
+        .meta-label { margin-bottom: 2px; color: var(--muted-2); font-size: .50rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+        .meta-value { overflow: hidden; color: #475569; font-size: .62rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+
+        .modal-backdrop {
+            position: fixed; inset: 0; z-index: 3000;
+            display: grid; place-items: center;
+            padding: 24px;
+            background: rgba(15,23,42,.52);
+            backdrop-filter: blur(10px);
+            animation: fadeIn .18s ease-out;
+        }
+        .modal {
+            width: min(980px, 100%);
+            max-height: min(88vh, 880px);
+            overflow: auto;
+            border-radius: 26px;
+            border: 1px solid rgba(255,255,255,.68);
+            background: #fff;
+            box-shadow: 0 40px 110px rgba(15,23,42,.30);
+            animation: modalIn .22s ease-out;
+        }
+        .modal-head {
+            position: sticky; top: 0; z-index: 3;
+            display: flex; justify-content: space-between; gap: 18px; align-items: flex-start;
+            padding: 22px 24px 17px;
+            border-bottom: 1px solid var(--line-soft);
+            background: rgba(255,255,255,.92);
+            backdrop-filter: blur(14px);
+        }
+        .modal-kicker { color: var(--blue); font-size: .56rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+        .modal-title { margin: 5px 0 0; font-size: clamp(1.15rem, 2.3vw, 1.65rem); letter-spacing: -.035em; line-height: 1.15; }
+        .close-btn {
+            flex: 0 0 38px; width: 38px; height: 38px; border-radius: 12px;
+            display: grid; place-items: center;
+            border: 1px solid var(--line); background: #f8fafc; cursor: pointer; font-size: 1rem;
+            transition: .16s ease;
+        }
+        .close-btn:hover { color: #1d4ed8; background: #eff6ff; border-color: #dbeafe; }
+        .modal-body { padding: 22px 24px 26px; }
+
+        .overview { display: grid; grid-template-columns: 1.25fr .75fr; gap: 14px; }
+        .overview-main {
+            position: relative; overflow: hidden;
+            padding: 20px; border-radius: 20px;
+            color: #fff; background: linear-gradient(135deg, #0f172a, #1e3a8a 72%, #2563eb);
+            box-shadow: 0 18px 40px rgba(30,58,138,.16);
+        }
+        .overview-main::after { content: ''; position: absolute; width: 180px; height: 180px; border-radius: 50%; right: -60px; top: -90px; background: rgba(255,255,255,.08); }
+        .overview-label { color: #bfdbfe; font-size: .57rem; font-weight: 800; letter-spacing: .10em; text-transform: uppercase; }
+        .overview-value { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: clamp(2.05rem, 5vw, 3.3rem); font-weight: 700; line-height: 1; letter-spacing: -.06em; }
+        .overview-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 14px; color: #dbeafe; font-size: .62rem; font-weight: 700; }
+        .overview-foot strong { color: #fff; }
+        .overview-side { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-box { padding: 14px; border-radius: 16px; background: #f8fafc; border: 1px solid var(--line); min-width: 0; }
+        .stat-box span { display: block; color: var(--muted-2); font-size: .53rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+        .stat-box b { display: block; margin-top: 6px; color: var(--ink-2); font-size: .76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .section { margin-top: 22px; }
+        .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+        .section-title { margin: 0; font-size: .88rem; letter-spacing: -.02em; }
+        .section-sub { margin: 4px 0 0; color: var(--muted); font-size: .62rem; font-weight: 650; }
+        .hierarchy-tag { padding: 6px 9px; border-radius: 999px; color: #6d28d9; background: var(--violet-soft); border: 1px solid #ede9fe; font-size: .55rem; font-weight: 800; }
+
+        .featured-detail {
+            display: flex; align-items: center; justify-content: space-between; gap: 18px;
+            margin-bottom: 10px; padding: 16px 18px;
+            border-radius: 18px; border: 1px solid #dbeafe;
+            background: linear-gradient(135deg, #eff6ff, #f8fbff);
+        }
+        .featured-detail .copy span { display: block; color: #64748b; font-size: .58rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+        .featured-detail .copy b { display: block; margin-top: 5px; color: #1e3a8a; font-size: .78rem; }
+        .featured-number { font-family: 'JetBrains Mono', monospace; color: #1d4ed8; font-size: 2rem; font-weight: 700; letter-spacing: -.05em; white-space: nowrap; }
+        .sede-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+        .sede-pill { padding: 4px 7px; border-radius: 8px; color: #475569; background: #fff; border: 1px solid #dbeafe; font-size: .53rem; font-weight: 750; }
+
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 10px; }
+        .detail-card { padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: #fff; box-shadow: 0 8px 22px rgba(15,23,42,.04); }
+        .detail-card-featured {
+            background: linear-gradient(145deg, #eff6ff 0%, #ffffff 72%);
+            border-color: #bfdbfe;
+            box-shadow: 0 12px 28px rgba(37,99,235,.09);
+        }
+        .detail-card-featured .detail-card-value { color: #1d4ed8; }
+        .detail-card-name { min-height: 34px; color: #475569; font-size: .60rem; font-weight: 800; line-height: 1.35; text-transform: uppercase; }
+        .detail-card-value { margin-top: 7px; font-family: 'JetBrains Mono', monospace; font-size: 1.35rem; font-weight: 700; letter-spacing: -.045em; }
+        .detail-card-prev { min-height: 15px; margin-top: 4px; color: var(--muted-2); font-size: .55rem; font-weight: 700; }
+        .bar-track { height: 6px; margin-top: 11px; overflow: hidden; border-radius: 999px; background: #eef2f7; }
+        .bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #60a5fa, #2563eb); min-width: 2px; }
+        .share { margin-top: 6px; color: #64748b; font-size: .53rem; font-weight: 750; }
+
+        .history-card { padding: 16px; border-radius: 18px; border: 1px solid var(--line); background: #fbfdff; }
+        .history-chart { height: 170px; display: flex; align-items: stretch; gap: 8px; padding-top: 8px; }
+        .history-col { flex: 1 1 0; min-width: 34px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; }
+        .history-value { color: #475569; font-family: 'JetBrains Mono', monospace; font-size: .50rem; font-weight: 700; white-space: nowrap; }
+        .history-bar-wrap { width: min(34px, 72%); height: 112px; display: flex; align-items: flex-end; }
+        .history-bar { width: 100%; min-height: 3px; border-radius: 7px 7px 3px 3px; background: #cbd5e1; }
+        .history-col.current .history-bar { background: linear-gradient(180deg, #60a5fa, #2563eb); box-shadow: 0 6px 14px rgba(37,99,235,.18); }
+        .history-col.current .history-value, .history-col.current .history-month { color: #1d4ed8; }
+        .history-month { color: var(--muted-2); font-size: .50rem; font-weight: 800; text-transform: uppercase; }
+        .privacy-note { margin-top: 18px; color: #94a3b8; font-size: .55rem; font-weight: 650; text-align: center; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        @media (max-width: 900px) {
+            .navbar { align-items: flex-start; padding: 12px 18px; }
+            .content { padding: 25px 18px 44px; }
+            .page-head { align-items: flex-start; flex-direction: column; }
+            .head-chips { justify-content: flex-start; }
+            .overview { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 690px) {
+            .navbar { position: static; flex-direction: column; }
+            .brand { width: 100%; }
+            .controls { width: 100%; justify-content: stretch; }
+            .control, .upload-btn { flex: 1 1 46%; min-width: 138px; }
+            .kpi-grid { grid-template-columns: 1fr; gap: 12px; }
+            .card { min-height: 0; }
+            .modal-backdrop { padding: 0; place-items: end center; }
+            .modal { width: 100%; max-height: 92vh; border-radius: 24px 24px 0 0; border-bottom: 0; }
+            .modal-head { padding: 18px 17px 14px; }
+            .modal-body { padding: 17px; }
+            .overview-side { grid-template-columns: 1fr 1fr; }
+            .featured-detail { align-items: flex-start; flex-direction: column; }
+            .history-chart { gap: 4px; overflow-x: auto; justify-content: flex-start; }
+            .history-col { min-width: 42px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <nav class="navbar">
+        <div class="brand">
+            <div class="brand-mark">CH</div>
+            <div class="brand-copy">
+                <strong>CAPITAL HUMANO</strong>
+                <span>Panel Ejecutivo</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <input type="file" id="up" @change="importExcel" hidden accept=".xlsx,.xls">
+            <label for="up" class="upload-btn">＋ CARGAR REPORTE</label>
+            <template v-if="dataLoaded">
+                <select v-model="fSede" class="control" @change="renderDashboard" aria-label="Filtrar por sede">
+                    <option value="GLOBAL">CONSOLIDADO GLOBAL</option>
+                    <option v-for="s in listSedes" :key="s" :value="s">{{ s }}</option>
+                </select>
+                <select v-model="fMes" class="control" @change="renderDashboard" aria-label="Filtrar por mes">
+                    <option v-for="m in monthColumns" :key="m.name" :value="m.name">{{ m.name }}</option>
+                </select>
+                <select v-model="fRubro" class="control" @change="renderDashboard" aria-label="Filtrar por clasificación">
+                    <option v-for="r in listRubros" :key="r" :value="r">{{ r }}</option>
+                </select>
+            </template>
+        </div>
+    </nav>
+
+    <main class="content">
+        <section v-if="!dataLoaded" class="hero">
+            <div class="hero-card">
+                <div class="hero-icon">👥</div>
+                <h1>Indicadores de Capital Humano</h1>
+                <p>Carga el reporte para visualizar los indicadores.</p>
+                <div v-if="loadError" class="error-box">{{ loadError }}</div>
+            </div>
+        </section>
+
+        <template v-else>
+            <section class="page-head">
+                <div>
+                    <span class="eyebrow">Panel de indicadores</span>
+                    <h1 class="page-title">{{ fRubro }}</h1>
+                    <p class="page-sub">{{ fSede === 'GLOBAL' ? 'Consolidado global' : fSede }} · Corte {{ fMes }} · {{ loadedFileName }}</p>
+                </div>
+                <div class="head-chips">
+                    <div class="head-chip"><b>{{ fMes }}</b> corte</div>
+                    <div class="head-chip"><b>{{ fSede === 'GLOBAL' ? 'GLOBAL' : fSede }}</b></div>
+                </div>
+            </section>
+
+            <section class="kpi-grid">
+                <article
+                    v-for="k in kpis"
+                    :key="k.id"
+                    :class="['card', 'card-' + k.color, { 'has-hierarchy': k.children.length > 0 }]"
+                    role="button"
+                    tabindex="0"
+                    :aria-label="'Abrir detalle de ' + k.nombre"
+                    @click="openCard(k)"
+                    @keydown.enter.prevent="openCard(k)"
+                    @keydown.space.prevent="openCard(k)"
+                >
+                    <div class="card-top">
+                        <span class="kpi-title">{{ k.nombre }}</span>
+                        <span class="open-btn" aria-hidden="true">↗</span>
+                    </div>
+
+                    <div v-if="k.dif !== null && hasPrevMonth" class="variation" :class="k.trendClass">
+                        {{ k.dif > 0 ? '▲' : (k.dif < 0 ? '▼' : '•') }} {{ Math.abs(k.dif).toFixed(1) }}%
+                        <small>vs {{ prevMonthLabel }}</small>
+                    </div>
+
+                    <div class="value-row">
+                        <span class="value">{{ k.valorFormateado }}</span>
+                        <span v-if="k.isBajas" class="people">{{ k.valorPersonas }} pers.</span>
+                    </div>
+
+                    <div class="prev">
+                        <template v-if="hasPrevMonth">
+                            {{ prevMonthLabel }}: {{ k.prevFormateado }}
+                            <span v-if="k.isBajas"> · {{ k.prevPersonas }} pers.</span>
+                        </template>
+                        <template v-else>Primer mes disponible</template>
+                    </div>
+
+                    <div class="mini-trend" aria-hidden="true">
+                        <span
+                            v-for="h in k.history"
+                            :key="h.month"
+                            :class="['mini-bar', { current: h.current }]"
+                            :style="{ height: h.miniHeight + '%' }"
+                        ></span>
+                    </div>
+
+                    <div class="status-line">
+                        <span :class="['pill', 'pill-' + k.color]">{{ k.status }}</span>
+                        <span :class="['detail-link', { hierarchy: k.children.length > 0 }]">
+                            {{ k.children.length ? 'ver desglose' : 'ver análisis' }}
+                        </span>
+                    </div>
+
+                    <div class="meta">
+                        <span>
+                            <span class="meta-label">Meta</span>
+                            <span class="meta-value">{{ k.metaLabel }}</span>
+                        </span>
+                        <span>
+                            <span class="meta-label">Sede</span>
+                            <span class="meta-value">{{ k.sedeDisplay }}</span>
+                        </span>
+                    </div>
+                </article>
+            </section>
+        </template>
+    </main>
+
+    <div v-if="activeKpi" class="modal-backdrop" @click.self="closeCard">
+        <section class="modal" role="dialog" aria-modal="true" :aria-label="'Detalle de ' + activeKpi.nombre">
+            <header class="modal-head">
+                <div>
+                    <span class="modal-kicker">Detalle del indicador · {{ fMes }}</span>
+                    <h2 class="modal-title">{{ activeKpi.nombre }}</h2>
+                </div>
+                <button class="close-btn" @click="closeCard" aria-label="Cerrar">✕</button>
+            </header>
+
+            <div class="modal-body">
+                <section class="overview">
+                    <div class="overview-main">
+                        <span class="overview-label">Valor actual</span>
+                        <div class="overview-value">{{ activeKpi.valorFormateado }}</div>
+                        <div class="overview-foot">
+                            <span :class="['pill', 'pill-' + activeKpi.color]">{{ activeKpi.status }}</span>
+                            <span v-if="hasPrevMonth">Anterior: <strong>{{ activeKpi.prevFormateado }}</strong></span>
+                            <span v-if="activeKpi.dif !== null">Variación: <strong>{{ activeKpi.dif > 0 ? '+' : '' }}{{ activeKpi.dif.toFixed(1) }}%</strong></span>
+                        </div>
+                    </div>
+                    <div class="overview-side">
+                        <div class="stat-box"><span>Meta / referencia</span><b>{{ activeKpi.metaLabel }}</b></div>
+                        <div class="stat-box"><span>Sede</span><b>{{ activeKpi.sedeDisplay }}</b></div>
+                        <div class="stat-box"><span>Mes</span><b>{{ fMes }}</b></div>
+                        <div class="stat-box"><span>Tipo</span><b>{{ activeKpi.tipo === 'PORCENTAJE' || activeKpi.isBajas ? 'Porcentaje' : 'Número' }}</b></div>
+                    </div>
+                </section>
+
+                <section v-if="activeKpi.children.length" class="section">
+                    <div class="section-head">
+                        <div>
+                            <h3 class="section-title">Desglose</h3>
+                        </div>
+                    </div>
+
+                    <div class="detail-grid">
+                        <div v-for="d in activeKpi.children" :key="d.id" :class="['detail-card', { 'detail-card-featured': d.isFeatured }]">
+                            <div class="detail-card-name">{{ d.nombre }}</div>
+                            <div class="detail-card-value">{{ d.valorFormateado }}</div>
+                            <div class="detail-card-prev">
+                                <template v-if="hasPrevMonth">{{ prevMonthLabel }}: {{ d.prevFormateado }}<span v-if="d.dif !== null"> · {{ d.dif > 0 ? '+' : '' }}{{ d.dif.toFixed(1) }}%</span></template>
+                                <template v-else>Sin comparativo previo</template>
+                            </div>
+                            <div class="bar-track"><div class="bar-fill" :style="{ width: d.barPct + '%' }"></div></div>
+                            <div class="share" v-if="d.sharePct !== null">Participación: {{ d.sharePct.toFixed(1) }}%</div>
+                            <div class="share" v-else-if="d.isFeatured">Total de personas</div>
+                            <div v-if="d.bySede.length > 1" class="sede-pills">
+                                <span v-for="s in d.bySede" :key="s.sede" class="sede-pill">{{ s.sede }} · {{ s.formatted }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-head">
+                        <div>
+                            <h3 class="section-title">Evolución mensual</h3>
+                        </div>
+                    </div>
+                    <div class="history-card">
+                        <div class="history-chart">
+                            <div v-for="h in activeKpi.history" :key="h.month" :class="['history-col', { current: h.current }]">
+                                <span class="history-value">{{ h.displayShort }}</span>
+                                <div class="history-bar-wrap"><div class="history-bar" :style="{ height: h.chartHeight + '%' }"></div></div>
+                                <span class="history-month">{{ h.shortMonth }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+    data() {
+        return {
+            dataLoaded: false,
+            loadError: '',
+            loadedFileName: '',
+            fSede: 'GLOBAL',
+            fMes: '',
+            fRubro: '',
+            rawSheets: [],
+            listSedes: [],
+            listRubros: [],
+            monthColumns: [],
+            kpis: [],
+            activeKpi: null,
+            monthOrder: ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
+        };
+    },
+    computed: {
+        currentMonthIndex() {
+            return this.monthColumns.findIndex(m => m.name === this.fMes);
+        },
+        hasPrevMonth() {
+            return this.currentMonthIndex > 0;
+        },
+        prevMonthLabel() {
+            return this.hasPrevMonth ? this.monthColumns[this.currentMonthIndex - 1].name : '';
+        },
+        linkedDetailCount() {
+            return this.kpis.reduce((acc, k) => acc + k.children.length, 0);
+        },
+        featuredChild() {
+            if (!this.activeKpi) return null;
+            return this.activeKpi.children.find(c => c.isFeatured) || null;
+        },
+        nonFeaturedChildren() {
+            if (!this.activeKpi) return [];
+            const featured = this.featuredChild;
+            return featured ? this.activeKpi.children.filter(c => c.id !== featured.id) : this.activeKpi.children;
+        }
+    },
+    mounted() {
+        window.addEventListener('keydown', this.handleGlobalKeydown);
+    },
+    beforeUnmount() {
+        window.removeEventListener('keydown', this.handleGlobalKeydown);
+    },
+    methods: {
+        normalize(value) {
+            return (value ?? '')
+                .toString()
+                .trim()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, '');
+        },
+
+        text(value) {
+            return (value ?? '').toString().trim();
+        },
+
+        number(value) {
+            if (typeof value === 'number' && Number.isFinite(value)) return value;
+            if (value === null || value === undefined || value === '') return 0;
+            const raw = value.toString().trim();
+            if (!raw || raw === '-') return 0;
+            const isPct = raw.includes('%');
+            const cleaned = raw.replace(/[$,%\s]/g, '').replace(/,/g, '');
+            const parsed = Number(cleaned);
+            if (!Number.isFinite(parsed)) return 0;
+            return isPct ? parsed / 100 : parsed;
+        },
+
+        findHeader(header, aliases) {
+            const normalizedAliases = aliases.map(a => this.normalize(a));
+            return header.findIndex(cell => normalizedAliases.includes(this.normalize(cell)));
+        },
+
+        canonicalMonth(value) {
+            const n = this.normalize(value);
+            const aliases = {
+                ENE: 'ENERO', ENERO: 'ENERO',
+                FEB: 'FEBRERO', FEBRERO: 'FEBRERO',
+                MAR: 'MARZO', MARZO: 'MARZO',
+                ABR: 'ABRIL', ABRIL: 'ABRIL',
+                MAY: 'MAYO', MAYO: 'MAYO',
+                JUN: 'JUNIO', JUNIO: 'JUNIO',
+                JUL: 'JULIO', JULIO: 'JULIO',
+                AGO: 'AGOSTO', AGOSTO: 'AGOSTO',
+                SEP: 'SEPTIEMBRE', SEPT: 'SEPTIEMBRE', SEPTIEMBRE: 'SEPTIEMBRE', SETIEMBRE: 'SEPTIEMBRE',
+                OCT: 'OCTUBRE', OCTUBRE: 'OCTUBRE',
+                NOV: 'NOVIEMBRE', NOVIEMBRE: 'NOVIEMBRE',
+                DIC: 'DICIEMBRE', DICIEMBRE: 'DICIEMBRE'
+            };
+            return aliases[n] || null;
+        },
+
+        buildSchema(rows) {
+            const header = rows?.[0] || [];
+            const schema = {
+                classificacion: this.findHeader(header, ['CLASIFICACION', 'CLASIFICACIÓN']),
+                jerarquia: this.findHeader(header, ['JERARQUIA', 'JERARQUÍA']),
+                kpi: this.findHeader(header, ['KPI', 'INDICADOR']),
+                responsable: this.findHeader(header, ['RESPONSABLE']),
+                signo: this.findHeader(header, ['SIGNO']),
+                meta: this.findHeader(header, ['VALOR_META', 'VALOR META', 'META']),
+                nota: this.findHeader(header, ['NOTA']),
+                tipo: this.findHeader(header, ['TIPODE DATO', 'TIPO DE DATO', 'TIPODATO']),
+                months: {}
+            };
+
+            header.forEach((cell, index) => {
+                const month = this.canonicalMonth(cell);
+                if (month) schema.months[month] = index;
+            });
+            return schema;
+        },
+
+        importExcel(e) {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            this.loadError = '';
+            this.closeCard();
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const sheets = wb.SheetNames.map(name => {
+                        const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null });
+                        return { n: name, rows, schema: this.buildSchema(rows) };
+                    }).filter(s => {
+                        const validCore = s.rows.length > 2 && s.schema.classificacion >= 0 && s.schema.kpi >= 0;
+                        const hasMonths = Object.keys(s.schema.months).length > 0;
+                        return validCore && hasMonths && !s.n.toUpperCase().includes('GENERAL');
+                    });
+
+                    if (!sheets.length) {
+                        throw new Error('No encontré hojas válidas con Clasificación, KPI y al menos un mes reconocido.');
+                    }
+
+                    this.rawSheets = sheets;
+                    this.listSedes = sheets.map(s => s.n);
+                    this.loadedFileName = file.name;
+                    this.detectMeses();
+                    this.detectRubros();
+
+                    if (!this.monthColumns.length) throw new Error('No se detectaron meses en los encabezados.');
+                    if (!this.listRubros.length) throw new Error('No se detectaron clasificaciones con KPIs principales.');
+
+                    this.dataLoaded = true;
+                    this.renderDashboard();
+                } catch (err) {
+                    console.error(err);
+                    this.dataLoaded = false;
+                    this.loadError = 'No pude procesar el archivo: ' + (err?.message || 'estructura no reconocida.');
+                } finally {
+                    e.target.value = '';
+                }
+            };
+            reader.onerror = () => {
+                this.dataLoaded = false;
+                this.loadError = 'No pude leer el archivo seleccionado.';
+                e.target.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        },
+
+        detectMeses() {
+            const found = new Set();
+            this.rawSheets.forEach(s => Object.keys(s.schema.months).forEach(m => found.add(m)));
+            this.monthColumns = this.monthOrder
+                .filter(m => found.has(m))
+                .map(name => ({ name, order: this.monthOrder.indexOf(name) }));
+
+            if (!this.monthColumns.some(m => m.name === this.fMes)) {
+                this.fMes = this.monthColumns.length ? this.monthColumns[this.monthColumns.length - 1].name : '';
+            }
+        },
+
+        detectRubros() {
+            const found = new Set();
+            this.rawSheets.forEach(sheet => {
+                const s = sheet.schema;
+                sheet.rows.slice(1).forEach(row => {
+                    const rubro = this.text(row[s.classificacion]);
+                    const kpi = this.text(row[s.kpi]);
+                    const hierarchy = s.jerarquia >= 0 ? this.text(row[s.jerarquia]) : '';
+                    if (rubro && kpi && !hierarchy) found.add(rubro.toUpperCase());
+                });
+            });
+            this.listRubros = Array.from(found);
+            if (!this.listRubros.includes(this.fRubro)) this.fRubro = this.listRubros[0] || '';
+        },
+
+        getTipo(sheet, row) {
+            const s = sheet.schema;
+            const candidates = [];
+            if (s.tipo >= 0) candidates.push(row[s.tipo]);
+            if (s.nota >= 0) candidates.push(row[s.nota]);
+            if (s.tipo > 0) candidates.push(row[s.tipo - 1]);
+            if (s.tipo >= 0) candidates.push(row[s.tipo + 1]);
+            for (const v of candidates) {
+                const n = this.normalize(v);
+                if (n === 'PORCENTAJE') return 'PORCENTAJE';
+                if (n === 'NUMERO') return 'NUMERO';
+            }
+            return 'NUMERO';
+        },
+
+        getSigno(sheet, row) {
+            const s = sheet.schema;
+            if (s.signo < 0) return 'DATO';
+            const value = this.normalize(row[s.signo]);
+            if (value === 'MAXIMO') return 'MAXIMO';
+            if (value === 'META') return 'META';
+            if (value === 'DATO') return 'DATO';
+            return 'DATO';
+        },
+
+        getMeta(sheet, row) {
+            const s = sheet.schema;
+            if (s.meta < 0) return { raw: null, val: 0 };
+            const raw = row[s.meta];
+            return { raw, val: this.number(raw) };
+        },
+
+        getMonthValue(sheet, row, monthName) {
+            const index = sheet.schema.months[monthName];
+            return index === undefined ? 0 : this.number(row[index]);
+        },
+
+        getPlantillaBaseForMonth(monthName, prevMonthName = null) {
+            let actual = 0;
+            let anterior = 0;
+            const sheets = this.fSede === 'GLOBAL'
+                ? this.rawSheets
+                : this.rawSheets.filter(s => s.n === this.fSede);
+
+            sheets.forEach(sheet => {
+                const kpiIndex = sheet.schema.kpi;
+                const hierarchyIndex = sheet.schema.jerarquia;
+                const row = sheet.rows.slice(1).find(r => {
+                    const name = this.normalize(r[kpiIndex]);
+                    const hierarchy = hierarchyIndex >= 0 ? this.text(r[hierarchyIndex]) : '';
+                    return !hierarchy && name.includes('PLANTILLAACTIVA');
+                });
+                if (!row) return;
+                actual += this.getMonthValue(sheet, row, monthName);
+                if (prevMonthName) anterior += this.getMonthValue(sheet, row, prevMonthName);
+            });
+            return { actual, anterior };
+        },
+
+        renderDashboard() {
+            this.kpis = [];
+            this.closeCard();
+            if (!this.fMes || !this.fRubro) return;
+
+            const prevMonth = this.hasPrevMonth ? this.prevMonthLabel : null;
+            const basePlantilla = this.getPlantillaBaseForMonth(this.fMes, prevMonth);
+
+            if (this.fSede === 'GLOBAL') {
+                const gData = {};
+                this.rawSheets.forEach(sheet => this.processSheet(sheet, gData, basePlantilla));
+
+                Object.values(gData).forEach(item => {
+                    const keyUpper = this.normalize(item.name);
+                    if (keyUpper.includes('PLANTILLAACTIVA')) return;
+
+                    const isRate = item.tipo === 'PORCENTAJE';
+                    const noPromediarGlobal = keyUpper.includes('SEGUIMIENTOAALERTASCONEMPLEADOSNUEVOS');
+                    let finalVal = (isRate && !item.isBajas && !noPromediarGlobal) ? (item.v / item.c) : item.v;
+                    let finalPrev = (isRate && !item.isBajas && !noPromediarGlobal) ? (item.p / item.c) : item.p;
+
+                    // REGLA BASE: en GLOBAL estos dos indicadores se dividen entre 2.
+                    if (keyUpper.includes('AVISOSCOMUNICADOSYRECONOCIMIENTOS') || keyUpper.includes('EVENTOSDELMES')) {
+                        finalVal /= 2;
+                        finalPrev /= 2;
+                    }
+
+                    if (item.isBajas) {
+                        item.pctBajasActual = basePlantilla.actual > 0 ? item.v / basePlantilla.actual : 0;
+                        item.pctBajasPrev = basePlantilla.anterior > 0 ? item.p / basePlantilla.anterior : 0;
+                    }
+
+                    this.pushKpi(item.name, finalVal, finalPrev, item, 'GLOBAL');
+                });
+
+                this.pushKpi('PLANTILLA ACTIVA TOTAL', basePlantilla.actual, basePlantilla.anterior, {
+                    metaStr: 'Variable', signo: 'DATO', metaVal: 0, tipo: 'NUMERO', isBajas: false,
+                    pctBajasActual: 0, pctBajasPrev: 0, prevDisponible: this.hasPrevMonth,
+                    sourceKpiName: 'Plantilla activa al cierre'
+                }, 'GLOBAL');
+            } else {
+                const sheet = this.rawSheets.find(s => s.n === this.fSede);
+                if (sheet) this.processSheet(sheet, null, basePlantilla);
+            }
+
+            this.kpis.sort((a, b) => {
+                const aTotal = this.normalize(a.nombre).includes('TOTAL') ? 0 : 1;
+                const bTotal = this.normalize(b.nombre).includes('TOTAL') ? 0 : 1;
+                return aTotal - bTotal;
+            });
+
+            this.kpis.forEach(k => {
+                k.children = this.buildHierarchyDetails(k.sourceKpiName || k.nombre);
+                k.history = this.buildHistory(k);
+            });
+        },
+
+        processSheet(sheet, dictGlobal = null, basePlantilla) {
+            const s = sheet.schema;
+            sheet.rows.slice(1).forEach(row => {
+                const rubro = this.text(row[s.classificacion]).toUpperCase();
+                const name = this.text(row[s.kpi]);
+                const hierarchy = s.jerarquia >= 0 ? this.text(row[s.jerarquia]) : '';
+                if (!name || hierarchy || rubro !== this.fRubro) return;
+
+                const val = this.getMonthValue(sheet, row, this.fMes);
+                const prev = this.hasPrevMonth ? this.getMonthValue(sheet, row, this.prevMonthLabel) : 0;
+                const tipo = this.getTipo(sheet, row);
+                const signo = this.getSigno(sheet, row);
+                const meta = this.getMeta(sheet, row);
+                const nameUpper = this.normalize(name);
+                const isBajas = nameUpper === 'BAJAS';
+                const pctBajasActual = isBajas && basePlantilla.actual > 0 ? val / basePlantilla.actual : 0;
+                const pctBajasPrev = isBajas && basePlantilla.anterior > 0 && this.hasPrevMonth ? prev / basePlantilla.anterior : 0;
+
+                const metaData = {
+                    v: val, p: prev, c: 1,
+                    metaStr: meta.raw,
+                    signo,
+                    metaVal: meta.val,
+                    tipo,
+                    isBajas,
+                    pctBajasActual,
+                    pctBajasPrev,
+                    prevDisponible: this.hasPrevMonth,
+                    sourceKpiName: name
+                };
+
+                if (dictGlobal) {
+                    const key = this.normalize(name);
+                    if (!dictGlobal[key]) dictGlobal[key] = { ...metaData, name, v: 0, p: 0, c: 0 };
+                    dictGlobal[key].v += val;
+                    dictGlobal[key].p += prev;
+                    dictGlobal[key].c += 1;
+                } else {
+                    this.pushKpi(name, val, prev, metaData, sheet.n);
+                }
+            });
+        },
+
+        pushKpi(nombre, val, prev, meta, sede) {
+            let color = 'gray';
+            let status = 'Dato';
+            const signoUpper = this.normalize(meta.signo);
+            const valorAEvaluar = meta.isBajas ? meta.pctBajasActual : val;
+            const valorAnteriorEval = meta.isBajas ? meta.pctBajasPrev : prev;
+
+            if (signoUpper === 'MAXIMO') {
+                if (valorAEvaluar <= meta.metaVal) { color = 'green'; status = 'Cumple'; }
+                else { color = 'red'; status = 'Excedido'; }
+            } else if (signoUpper === 'META') {
+                if (valorAEvaluar >= meta.metaVal) { color = 'green'; status = 'Logrado'; }
+                else { color = 'red'; status = 'Bajo Meta'; }
+            }
+
+            // REGLA BASE: texto especial de Riesgos Laborales.
+            if (this.normalize(nombre).includes('DETECCIONYATENCIONDERIESGOSLABORALES') && status === 'Bajo Meta') {
+                status = 'Sin incidencias';
+            }
+
+            const dif = meta.prevDisponible && valorAnteriorEval !== 0
+                ? ((valorAEvaluar - valorAnteriorEval) / valorAnteriorEval) * 100
+                : null;
+
+            let trendClass = '';
+            if (dif !== null) {
+                if (signoUpper === 'MAXIMO') trendClass = dif <= 0 ? 'trend-good' : 'trend-bad';
+                else trendClass = dif >= 0 ? 'trend-good' : 'trend-bad';
+            }
+
+            const displayVal = meta.isBajas ? meta.pctBajasActual : val;
+            const displayPrev = meta.isBajas ? meta.pctBajasPrev : prev;
+            const displayTipo = meta.isBajas ? 'PORCENTAJE' : meta.tipo;
+            const metaLabel = meta.isBajas
+                ? (meta.metaVal * 100).toFixed(1) + '%'
+                : (meta.tipo === 'PORCENTAJE'
+                    ? (meta.metaVal * 100).toFixed(1) + '%'
+                    : (meta.metaStr === null || meta.metaStr === undefined || meta.metaStr === '' ? 'Sin meta' : meta.metaStr));
+
+            this.kpis.push({
+                id: this.normalize(nombre) + '-' + sede,
+                nombre,
+                sourceKpiName: meta.sourceKpiName || nombre,
+                rawValue: displayVal,
+                rawPrev: displayPrev,
+                valorFormateado: this.fmt(displayVal, displayTipo),
+                prevFormateado: this.fmt(displayPrev, displayTipo),
+                valorPersonas: val,
+                prevPersonas: prev,
+                metaLabel,
+                sedeDisplay: sede,
+                color, status, dif, trendClass,
+                isBajas: meta.isBajas,
+                tipo: meta.tipo,
+                signo: meta.signo,
+                metaVal: meta.metaVal,
+                children: [],
+                history: []
+            });
+        },
+
+        buildHierarchyDetails(parentName) {
+            const parentKey = this.normalize(parentName);
+            if (!parentKey) return [];
+            const sheets = this.fSede === 'GLOBAL'
+                ? this.rawSheets
+                : this.rawSheets.filter(s => s.n === this.fSede);
+            const groups = {};
+
+            sheets.forEach(sheet => {
+                const s = sheet.schema;
+                if (s.jerarquia < 0) return;
+                sheet.rows.slice(1).forEach(row => {
+                    const hierarchy = this.text(row[s.jerarquia]);
+                    const childName = this.text(row[s.kpi]);
+                    if (!childName || this.normalize(hierarchy) !== parentKey) return;
+
+                    const key = this.normalize(childName);
+                    const tipo = this.getTipo(sheet, row);
+                    const val = this.getMonthValue(sheet, row, this.fMes);
+                    const prev = this.hasPrevMonth ? this.getMonthValue(sheet, row, this.prevMonthLabel) : 0;
+                    if (!groups[key]) {
+                        groups[key] = { name: childName, tipo, v: 0, p: 0, c: 0, bySede: [] };
+                    }
+                    groups[key].v += val;
+                    groups[key].p += prev;
+                    groups[key].c += 1;
+                    groups[key].bySede.push({ sede: sheet.n, value: val, formatted: this.fmt(val, tipo) });
+                });
+            });
+
+            let details = Object.values(groups).map((g, index) => {
+                const val = this.fSede === 'GLOBAL' && g.tipo === 'PORCENTAJE' ? g.v / g.c : g.v;
+                const prev = this.fSede === 'GLOBAL' && g.tipo === 'PORCENTAJE' ? g.p / g.c : g.p;
+                const dif = this.hasPrevMonth && prev !== 0 ? ((val - prev) / prev) * 100 : null;
+                const normalizedName = this.normalize(g.name);
+                return {
+                    id: parentKey + '-child-' + index + '-' + normalizedName,
+                    nombre: g.name,
+                    tipo: g.tipo,
+                    rawValue: val,
+                    rawPrev: prev,
+                    valorFormateado: this.fmt(val, g.tipo),
+                    prevFormateado: this.fmt(prev, g.tipo),
+                    dif,
+                    isFeatured: normalizedName.includes('NUMERODEPERSONAS') || normalizedName.includes('TOTAL'),
+                    bySede: g.bySede,
+                    barPct: 0,
+                    sharePct: null
+                };
+            });
+
+            if (!details.length) return [];
+            const featured = details.find(d => d.isFeatured);
+            const reference = featured && Math.abs(featured.rawValue) > 0 ? Math.abs(featured.rawValue) : null;
+            const maxValue = Math.max(...details.map(d => Math.abs(d.rawValue)), 0);
+
+            details = details.map(d => {
+                if (reference) {
+                    d.barPct = Math.min(100, Math.max(2, Math.abs(d.rawValue) / reference * 100));
+                    d.sharePct = d.isFeatured ? null : Math.abs(d.rawValue) / reference * 100;
+                } else if (maxValue > 0) {
+                    d.barPct = Math.min(100, Math.max(2, Math.abs(d.rawValue) / maxValue * 100));
+                } else {
+                    d.barPct = 2;
+                }
+                return d;
+            });
+
+            return details;
+        },
+
+        getAggregatedKpiForMonth(kpi, monthName) {
+            const sourceName = kpi.sourceKpiName || kpi.nombre;
+            const sourceKey = this.normalize(sourceName);
+            const sheets = this.fSede === 'GLOBAL'
+                ? this.rawSheets
+                : this.rawSheets.filter(s => s.n === this.fSede);
+            let sum = 0;
+            let count = 0;
+
+            sheets.forEach(sheet => {
+                const s = sheet.schema;
+                const row = sheet.rows.slice(1).find(r => {
+                    const name = this.normalize(r[s.kpi]);
+                    const hierarchy = s.jerarquia >= 0 ? this.text(r[s.jerarquia]) : '';
+                    return !hierarchy && name === sourceKey;
+                });
+                if (!row) return;
+                sum += this.getMonthValue(sheet, row, monthName);
+                count += 1;
+            });
+
+            if (kpi.isBajas) {
+                const base = this.getPlantillaBaseForMonth(monthName).actual;
+                return base > 0 ? sum / base : 0;
+            }
+
+            if (this.fSede === 'GLOBAL') {
+                const noPromediar = sourceKey.includes('SEGUIMIENTOAALERTASCONEMPLEADOSNUEVOS');
+                let value = (kpi.tipo === 'PORCENTAJE' && !noPromediar && count > 0) ? sum / count : sum;
+                if (sourceKey.includes('AVISOSCOMUNICADOSYRECONOCIMIENTOS') || sourceKey.includes('EVENTOSDELMES')) value /= 2;
+                return value;
+            }
+            return sum;
+        },
+
+        buildHistory(kpi) {
+            const selectedIndex = this.currentMonthIndex;
+            if (selectedIndex < 0) return [];
+            const start = Math.max(0, selectedIndex - 6);
+            let history = this.monthColumns.slice(start, selectedIndex + 1).map(m => {
+                const value = this.getAggregatedKpiForMonth(kpi, m.name);
+                const displayTipo = kpi.isBajas ? 'PORCENTAJE' : kpi.tipo;
+                return {
+                    month: m.name,
+                    shortMonth: m.name.slice(0, 3),
+                    value,
+                    current: m.name === this.fMes,
+                    display: this.fmt(value, displayTipo),
+                    displayShort: this.fmtShort(value, displayTipo),
+                    miniHeight: 10,
+                    chartHeight: 4
+                };
+            });
+
+            const maxAbs = Math.max(...history.map(h => Math.abs(h.value)), 0);
+            history = history.map(h => {
+                const pct = maxAbs > 0 ? Math.abs(h.value) / maxAbs * 100 : 0;
+                h.miniHeight = Math.max(10, pct);
+                h.chartHeight = Math.max(4, pct);
+                return h;
+            });
+            return history;
+        },
+
+        fmt(value, tipo) {
+            const v = Number.isFinite(value) ? value : 0;
+            if (tipo === 'PORCENTAJE') return (v * 100).toFixed(1) + '%';
+            // REGLA BASE conservada: NUMERO > 1000 se presenta como importe.
+            if (tipo === 'NUMERO' && v > 1000) {
+                return '$' + v.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return v.toLocaleString('es-MX', { maximumFractionDigits: 2 });
+        },
+
+        fmtShort(value, tipo) {
+            const v = Number.isFinite(value) ? value : 0;
+            if (tipo === 'PORCENTAJE') return (v * 100).toFixed(1) + '%';
+            const abs = Math.abs(v);
+            if (abs >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+            if (abs >= 1000) return (v / 1000).toFixed(1) + 'K';
+            return v.toLocaleString('es-MX', { maximumFractionDigits: 1 });
+        },
+
+        openCard(kpi) {
+            this.activeKpi = kpi;
+            document.body.classList.add('modal-open');
+        },
+
+        closeCard() {
+            this.activeKpi = null;
+            document.body.classList.remove('modal-open');
+        },
+
+        handleGlobalKeydown(e) {
+            if (e.key === 'Escape' && this.activeKpi) this.closeCard();
+        }
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
