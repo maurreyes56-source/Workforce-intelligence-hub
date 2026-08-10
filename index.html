@@ -552,7 +552,7 @@
                         <div class="stat-box"><span>Meta / referencia</span><b>{{ activeKpi.metaLabel }}</b></div>
                         <div class="stat-box"><span>Sede</span><b>{{ activeKpi.sedeDisplay }}</b></div>
                         <div class="stat-box"><span>Mes</span><b>{{ fMes }}</b></div>
-                        <div class="stat-box"><span>Tipo</span><b>{{ activeKpi.tipo === 'PORCENTAJE' || activeKpi.isBajas ? 'Porcentaje' : 'Número' }}</b></div>
+                        <div class="stat-box"><span>Tipo</span><b>{{ activeKpi.displayTipo === 'PORCENTAJE' ? 'Porcentaje' : 'Número' }}</b></div>
                     </div>
                 </section>
 
@@ -1024,7 +1024,20 @@ createApp({
 
             const displayVal = meta.isBajas ? meta.pctBajasActual : val;
             const displayPrev = meta.isBajas ? meta.pctBajasPrev : prev;
-            const displayTipo = meta.isBajas ? 'PORCENTAJE' : meta.tipo;
+
+            // AJUSTES SOLICITADOS POR CAPITAL HUMANO:
+            // - TOTAL DE AUSENCIAS: mostrar como número, sin símbolo $.
+            // - DETECCIÓN Y ATENCIÓN DE RIESGOS LABORALES: mostrar el conteo
+            //   (ej. JUNIO 3 / JULIO 7), sin multiplicarlo por 100.
+            const nombreNormalizado = this.normalize(nombre);
+            const mostrarComoConteo =
+                nombreNormalizado.includes('TOTALDEAUSENCIAS') ||
+                nombreNormalizado.includes('DETECCIONYATENCIONDERIESGOSLABORALES');
+
+            const displayTipo = meta.isBajas
+                ? 'PORCENTAJE'
+                : (mostrarComoConteo ? 'CONTEO' : meta.tipo);
+
             const metaLabel = meta.isBajas
                 ? (meta.metaVal * 100).toFixed(1) + '%'
                 : (meta.tipo === 'PORCENTAJE'
@@ -1046,6 +1059,7 @@ createApp({
                 color, status, dif, trendClass,
                 isBajas: meta.isBajas,
                 tipo: meta.tipo,
+                displayTipo,
                 signo: meta.signo,
                 metaVal: meta.metaVal,
                 children: [],
@@ -1176,7 +1190,7 @@ createApp({
             const start = Math.max(0, selectedIndex - 6);
             let history = this.monthColumns.slice(start, selectedIndex + 1).map(m => {
                 const value = this.getAggregatedKpiForMonth(kpi, m.name);
-                const displayTipo = kpi.isBajas ? 'PORCENTAJE' : kpi.tipo;
+                const displayTipo = kpi.displayTipo || (kpi.isBajas ? 'PORCENTAJE' : kpi.tipo);
                 return {
                     month: m.name,
                     shortMonth: m.name.slice(0, 3),
@@ -1202,6 +1216,7 @@ createApp({
         fmt(value, tipo) {
             const v = Number.isFinite(value) ? value : 0;
             if (tipo === 'PORCENTAJE') return (v * 100).toFixed(1) + '%';
+            if (tipo === 'CONTEO') return v.toLocaleString('es-MX', { maximumFractionDigits: 2 });
             // REGLA BASE conservada: NUMERO > 1000 se presenta como importe.
             if (tipo === 'NUMERO' && v > 1000) {
                 return '$' + v.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1212,6 +1227,7 @@ createApp({
         fmtShort(value, tipo) {
             const v = Number.isFinite(value) ? value : 0;
             if (tipo === 'PORCENTAJE') return (v * 100).toFixed(1) + '%';
+            if (tipo === 'CONTEO') return v.toLocaleString('es-MX', { maximumFractionDigits: 1 });
             const abs = Math.abs(v);
             if (abs >= 1000000) return (v / 1000000).toFixed(1) + 'M';
             if (abs >= 1000) return (v / 1000).toFixed(1) + 'K';
