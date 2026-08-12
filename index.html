@@ -919,6 +919,27 @@ createApp({
             return { actual, anterior };
         },
 
+        getHeadcountForMonth(monthName, type = 'ACTIVE') {
+            const sheets = this.fSede === 'GLOBAL'
+                ? this.rawSheets
+                : this.rawSheets.filter(s => s.n === this.fSede);
+            let total = 0;
+
+            sheets.forEach(sheet => {
+                const s = sheet.schema;
+                const row = sheet.rows.slice(1).find(r => {
+                    const name = this.normalize(r[s.kpi]);
+                    const hierarchy = s.jerarquia >= 0 ? this.text(r[s.jerarquia]) : '';
+                    if (hierarchy) return false;
+                    return type === 'TOTAL'
+                        ? name === 'PLANTILLATOTAL'
+                        : name.includes('PLANTILLAACTIVA');
+                });
+                if (row) total += this.getMonthValue(sheet, row, monthName);
+            });
+            return total;
+        },
+
         renderDashboard() {
             this.kpis = [];
             this.closeCard();
@@ -1033,6 +1054,8 @@ createApp({
 
             const isBajas = !!meta.isBajas;
             const isTiempoExtra = nombreNormalizado.includes('PAGODETIEMPOEXTRA');
+            const isAusentismo = nombreNormalizado === 'AUSENTISMOS';
+            const isVacaciones = nombreNormalizado === 'VACACIONES';
             const isRotacion = nombreNormalizado === 'ROTACION';
             const isAlertas = nombreNormalizado.includes('SEGUIMIENTOAALERTASCONEMPLEADOSNUEVOS');
 
@@ -1066,13 +1089,14 @@ createApp({
             }
 
             // Comparativos dinámicos: siempre mes seleccionado vs mes inmediatamente anterior.
-            // Bajas usa personas; Tiempo Extra usa puntos porcentuales; el resto variación relativa.
+            // Tiempo Extra, Ausentismo y Vacaciones usan diferencia en puntos porcentuales (pp).
+            // Bajas usa personas; el resto conserva variación relativa.
             let dif = null;
             let variationSuffix = '%';
             let variationDecimals = 1;
 
             if (meta.prevDisponible) {
-                if (isTiempoExtra) {
+                if (isTiempoExtra || isAusentismo || isVacaciones) {
                     dif = (val - prev) * 100;
                     variationSuffix = ' pp';
                     variationDecimals = 2;
