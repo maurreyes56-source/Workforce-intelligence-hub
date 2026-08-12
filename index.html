@@ -180,6 +180,7 @@
         .card-green { --status: #10b981; }
         .card-red { --status: #ef4444; }
         .card-yellow { --status: #f59e0b; }
+        .card-blue { --status: #2563eb; }
         .card-gray { --status: #94a3b8; }
         .card.has-hierarchy { border-color: #ddd6fe; }
         .card.has-hierarchy::after { background: var(--violet); opacity: .045; }
@@ -222,6 +223,12 @@
             white-space: nowrap;
         }
         .people { color: var(--muted); font-size: .70rem; font-weight: 750; }
+        .supplemental {
+            display: inline-flex; align-items: center;
+            padding: 4px 7px; border-radius: 999px;
+            color: #1d4ed8; background: #eff6ff; border: 1px solid #dbeafe;
+            font-size: .60rem; font-weight: 800; white-space: nowrap;
+        }
         .prev { min-height: 17px; color: var(--muted); font-size: .64rem; font-weight: 650; }
 
         .mini-trend { height: 32px; display: flex; align-items: flex-end; gap: 3px; margin: 9px 0 10px; }
@@ -240,6 +247,7 @@
         .pill-green { color: var(--green); background: var(--green-soft); border-color: #d1fae5; }
         .pill-red { color: var(--red); background: var(--red-soft); border-color: #fee2e2; }
         .pill-yellow { color: var(--amber); background: var(--amber-soft); border-color: #fef3c7; }
+        .pill-blue { color: var(--blue); background: var(--blue-soft); border-color: #dbeafe; }
         .pill-gray { color: #64748b; background: #f8fafc; border-color: var(--line); }
         .detail-link { color: #94a3b8; font-size: .56rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
         .detail-link.hierarchy { color: #7c3aed; }
@@ -479,19 +487,21 @@
                     </div>
 
                     <div v-if="k.dif !== null && hasPrevMonth" class="variation" :class="k.trendClass">
-                        {{ k.dif > 0 ? '▲' : (k.dif < 0 ? '▼' : '•') }} {{ Math.abs(k.dif).toFixed(1) }}%
+                        {{ k.dif > 0 ? '▲' : (k.dif < 0 ? '▼' : '•') }}
+                        {{ Math.abs(k.dif).toFixed(k.variationDecimals) }}{{ k.variationSuffix }}
                         <small>vs {{ prevMonthLabel }}</small>
                     </div>
 
                     <div class="value-row">
                         <span class="value">{{ k.valorFormateado }}</span>
-                        <span v-if="k.isBajas" class="people">{{ k.valorPersonas }} pers.</span>
+                        <span v-if="k.unitLabel" class="people">{{ k.unitLabel }}</span>
+                        <span v-if="k.supplementalText" class="supplemental">{{ k.supplementalText }}</span>
                     </div>
 
                     <div class="prev">
                         <template v-if="hasPrevMonth">
-                            {{ prevMonthLabel }}: {{ k.prevFormateado }}
-                            <span v-if="k.isBajas"> · {{ k.prevPersonas }} pers.</span>
+                            {{ prevMonthLabel }}: {{ k.prevFormateado }}<span v-if="k.unitLabel"> {{ k.unitLabel }}</span>
+                            <span v-if="k.deltaPersonasLabel"> · Diferencia: {{ k.deltaPersonasLabel }}</span>
                         </template>
                         <template v-else>Primer mes disponible</template>
                     </div>
@@ -544,8 +554,10 @@
                         <div class="overview-value">{{ activeKpi.valorFormateado }}</div>
                         <div class="overview-foot">
                             <span :class="['pill', 'pill-' + activeKpi.color]">{{ activeKpi.status }}</span>
-                            <span v-if="hasPrevMonth">Anterior: <strong>{{ activeKpi.prevFormateado }}</strong></span>
-                            <span v-if="activeKpi.dif !== null">Variación: <strong>{{ activeKpi.dif > 0 ? '+' : '' }}{{ activeKpi.dif.toFixed(1) }}%</strong></span>
+                            <span v-if="hasPrevMonth">Anterior: <strong>{{ activeKpi.prevFormateado }}<span v-if="activeKpi.unitLabel"> {{ activeKpi.unitLabel }}</span></strong></span>
+                            <span v-if="activeKpi.dif !== null">Variación: <strong>{{ activeKpi.dif > 0 ? '+' : '' }}{{ activeKpi.dif.toFixed(activeKpi.variationDecimals) }}{{ activeKpi.variationSuffix }}</strong></span>
+                            <span v-if="activeKpi.deltaPersonasLabel">Diferencia: <strong>{{ activeKpi.deltaPersonasLabel }}</strong></span>
+                            <span v-if="activeKpi.supplementalText">Dato global: <strong>{{ activeKpi.supplementalText }}</strong></span>
                         </div>
                     </div>
                     <div class="overview-side">
@@ -695,6 +707,21 @@ createApp({
 
         text(value) {
             return (value ?? '').toString().trim();
+        },
+
+        isRecruitmentBlock() {
+            const rubro = this.normalize(this.fRubro);
+            return rubro.includes('RECLUTAMIENTO') && rubro.includes('SELECCION');
+        },
+
+        hasNumericMonthValue(sheet, row, monthName) {
+            const index = sheet.schema.months[monthName];
+            if (index === undefined) return false;
+            const raw = row[index];
+            if (raw === null || raw === undefined || raw === '') return false;
+            if (typeof raw === 'number') return Number.isFinite(raw);
+            const cleaned = raw.toString().trim().replace(/[$,%\s]/g, '').replace(/,/g, '');
+            return cleaned !== '' && Number.isFinite(Number(cleaned));
         },
 
         number(value) {
@@ -909,7 +936,9 @@ createApp({
                     if (keyUpper.includes('PLANTILLAACTIVA')) return;
 
                     const isRate = item.tipo === 'PORCENTAJE';
-                    const noPromediarGlobal = keyUpper.includes('SEGUIMIENTOAALERTASCONEMPLEADOSNUEVOS');
+                    const noPromediarGlobal =
+                        keyUpper.includes('SEGUIMIENTOAALERTASCONEMPLEADOSNUEVOS') ||
+                        keyUpper.includes('DETECCIONYATENCIONDERIESGOSLABORALES');
                     let finalVal = (isRate && !item.isBajas && !noPromediarGlobal) ? (item.v / item.c) : item.v;
                     let finalPrev = (isRate && !item.isBajas && !noPromediarGlobal) ? (item.p / item.c) : item.p;
 
@@ -927,11 +956,14 @@ createApp({
                     this.pushKpi(item.name, finalVal, finalPrev, item, 'GLOBAL');
                 });
 
-                this.pushKpi('PLANTILLA ACTIVA TOTAL', basePlantilla.actual, basePlantilla.anterior, {
-                    metaStr: 'Variable', signo: 'DATO', metaVal: 0, tipo: 'NUMERO', isBajas: false,
-                    pctBajasActual: 0, pctBajasPrev: 0, prevDisponible: this.hasPrevMonth,
-                    sourceKpiName: 'Plantilla activa al cierre'
-                }, 'GLOBAL');
+                // Plantilla activa/total sólo debe mostrarse dentro del bloque de Reclutamiento y Selección.
+                if (this.isRecruitmentBlock()) {
+                    this.pushKpi('PLANTILLA ACTIVA TOTAL', basePlantilla.actual, basePlantilla.anterior, {
+                        metaStr: 'Variable', signo: 'DATO', metaVal: 0, tipo: 'NUMERO', isBajas: false,
+                        pctBajasActual: 0, pctBajasPrev: 0, prevDisponible: this.hasPrevMonth,
+                        sourceKpiName: 'Plantilla activa al cierre'
+                    }, 'GLOBAL');
+                }
             } else {
                 const sheet = this.rawSheets.find(s => s.n === this.fSede);
                 if (sheet) this.processSheet(sheet, null, basePlantilla);
@@ -945,6 +977,7 @@ createApp({
 
             this.kpis.forEach(k => {
                 k.children = this.buildHierarchyDetails(k.sourceKpiName || k.nombre);
+                this.applyHierarchyOverrides(k);
                 k.history = this.buildHistory(k);
             });
         },
@@ -995,9 +1028,17 @@ createApp({
         pushKpi(nombre, val, prev, meta, sede) {
             let color = 'gray';
             let status = 'Dato';
+            const nombreNormalizado = this.normalize(nombre);
             const signoUpper = this.normalize(meta.signo);
-            const valorAEvaluar = meta.isBajas ? meta.pctBajasActual : val;
-            const valorAnteriorEval = meta.isBajas ? meta.pctBajasPrev : prev;
+
+            const isBajas = !!meta.isBajas;
+            const isTiempoExtra = nombreNormalizado.includes('PAGODETIEMPOEXTRA');
+            const isRotacion = nombreNormalizado === 'ROTACION';
+            const isAlertas = nombreNormalizado.includes('SEGUIMIENTOAALERTASCONEMPLEADOSNUEVOS');
+
+            // La meta de Bajas continúa evaluándose contra plantilla activa,
+            // pero su lectura/variación se presenta en número de personas.
+            const valorAEvaluar = isBajas ? meta.pctBajasActual : val;
 
             if (signoUpper === 'MAXIMO') {
                 if (valorAEvaluar <= meta.metaVal) { color = 'green'; status = 'Cumple'; }
@@ -1007,42 +1048,71 @@ createApp({
                 else { color = 'red'; status = 'Bajo Meta'; }
             }
 
-            // REGLA BASE: texto especial de Riesgos Laborales.
-            if (this.normalize(nombre).includes('DETECCIONYATENCIONDERIESGOSLABORALES') && status === 'Bajo Meta') {
+            // Excepción solicitada: Rotación por arriba de la referencia se marca azul / Superado.
+            if (isRotacion && signoUpper === 'MAXIMO' && valorAEvaluar > meta.metaVal) {
+                color = 'blue';
+                status = 'Superado';
+            }
+
+            // Excepción exclusiva de este KPI: 0 significa que no hubo alertas.
+            if (isAlertas && val === 0) {
+                color = 'green';
+                status = 'Sin alertas';
+            }
+
+            // Regla base conservada para Riesgos Laborales.
+            if (nombreNormalizado.includes('DETECCIONYATENCIONDERIESGOSLABORALES') && status === 'Bajo Meta') {
                 status = 'Sin incidencias';
             }
 
-            const dif = meta.prevDisponible && valorAnteriorEval !== 0
-                ? ((valorAEvaluar - valorAnteriorEval) / valorAnteriorEval) * 100
-                : null;
+            // Comparativos dinámicos: siempre mes seleccionado vs mes inmediatamente anterior.
+            // Bajas usa personas; Tiempo Extra usa puntos porcentuales; el resto variación relativa.
+            let dif = null;
+            let variationSuffix = '%';
+            let variationDecimals = 1;
+
+            if (meta.prevDisponible) {
+                if (isTiempoExtra) {
+                    dif = (val - prev) * 100;
+                    variationSuffix = ' pp';
+                    variationDecimals = 2;
+                } else if (prev !== 0) {
+                    dif = ((val - prev) / prev) * 100;
+                }
+            }
 
             let trendClass = '';
             if (dif !== null) {
-                if (signoUpper === 'MAXIMO') trendClass = dif <= 0 ? 'trend-good' : 'trend-bad';
-                else trendClass = dif >= 0 ? 'trend-good' : 'trend-bad';
+                if (isAlertas && val === 0) {
+                    trendClass = 'trend-good';
+                } else if (signoUpper === 'MAXIMO') {
+                    trendClass = dif <= 0 ? 'trend-good' : 'trend-bad';
+                } else {
+                    trendClass = dif >= 0 ? 'trend-good' : 'trend-bad';
+                }
             }
 
-            const displayVal = meta.isBajas ? meta.pctBajasActual : val;
-            const displayPrev = meta.isBajas ? meta.pctBajasPrev : prev;
-
-            // AJUSTES SOLICITADOS POR CAPITAL HUMANO:
-            // - TOTAL DE AUSENCIAS: mostrar como número, sin símbolo $.
-            // - DETECCIÓN Y ATENCIÓN DE RIESGOS LABORALES: mostrar el conteo
-            //   (ej. JUNIO 3 / JULIO 7), sin multiplicarlo por 100.
-            const nombreNormalizado = this.normalize(nombre);
             const mostrarComoConteo =
+                isBajas ||
                 nombreNormalizado.includes('TOTALDEAUSENCIAS') ||
                 nombreNormalizado.includes('DETECCIONYATENCIONDERIESGOSLABORALES');
 
-            const displayTipo = meta.isBajas
-                ? 'PORCENTAJE'
-                : (mostrarComoConteo ? 'CONTEO' : meta.tipo);
+            const displayVal = val;
+            const displayPrev = prev;
+            const displayTipo = mostrarComoConteo ? 'CONTEO' : meta.tipo;
 
-            const metaLabel = meta.isBajas
+            const metaLabel = isBajas
                 ? (meta.metaVal * 100).toFixed(1) + '%'
-                : (meta.tipo === 'PORCENTAJE'
-                    ? (meta.metaVal * 100).toFixed(1) + '%'
-                    : (meta.metaStr === null || meta.metaStr === undefined || meta.metaStr === '' ? 'Sin meta' : meta.metaStr));
+                : (mostrarComoConteo
+                    ? (meta.metaStr === null || meta.metaStr === undefined || meta.metaStr === '' ? 'Sin meta' : this.fmt(meta.metaVal, 'CONTEO'))
+                    : (meta.tipo === 'PORCENTAJE'
+                        ? (meta.metaVal * 100).toFixed(1) + '%'
+                        : (meta.metaStr === null || meta.metaStr === undefined || meta.metaStr === '' ? 'Sin meta' : meta.metaStr)));
+
+            const deltaPersonas = isBajas && meta.prevDisponible ? val - prev : null;
+            const deltaPersonasLabel = deltaPersonas === null
+                ? ''
+                : (deltaPersonas > 0 ? '+' : '') + this.fmt(deltaPersonas, 'CONTEO') + ' pers.';
 
             this.kpis.push({
                 id: this.normalize(nombre) + '-' + sede,
@@ -1054,14 +1124,21 @@ createApp({
                 prevFormateado: this.fmt(displayPrev, displayTipo),
                 valorPersonas: val,
                 prevPersonas: prev,
+                unitLabel: isBajas ? 'pers.' : '',
+                deltaPersonasLabel,
+                supplementalText: '',
+                historySource: null,
                 metaLabel,
                 sedeDisplay: sede,
                 color, status, dif, trendClass,
-                isBajas: meta.isBajas,
+                variationSuffix,
+                variationDecimals,
+                isBajas,
                 tipo: meta.tipo,
                 displayTipo,
                 signo: meta.signo,
                 metaVal: meta.metaVal,
+                meta,
                 children: [],
                 history: []
             });
@@ -1087,28 +1164,71 @@ createApp({
                     const tipo = this.getTipo(sheet, row);
                     const val = this.getMonthValue(sheet, row, this.fMes);
                     const prev = this.hasPrevMonth ? this.getMonthValue(sheet, row, this.prevMonthLabel) : 0;
+                    const hasCurrentValue = this.hasNumericMonthValue(sheet, row, this.fMes);
+                    const hasPrevValue = this.hasPrevMonth ? this.hasNumericMonthValue(sheet, row, this.prevMonthLabel) : false;
+
+                    const isIngresosGlobalAbs =
+                        parentKey === 'INGRESOS' &&
+                        key.includes('NUMERODEINGRESOS');
+
+                    // "Número de ingresos" es un dato absoluto global: nunca atribuirlo a una sede.
+                    if (isIngresosGlobalAbs && this.fSede !== 'GLOBAL') return;
 
                     // Un curso se muestra únicamente en el mes en que está marcado con un valor > 0.
                     if (tipo === 'CURSO' && val <= 0) return;
 
                     if (!groups[key]) {
-                        groups[key] = { name: childName, tipo, v: 0, p: 0, c: 0, bySede: [] };
+                        groups[key] = {
+                            name: childName,
+                            tipo,
+                            v: 0,
+                            p: 0,
+                            c: 0,
+                            hasCurrentValue: false,
+                            hasPrevValue: false,
+                            globalOnly: isIngresosGlobalAbs,
+                            currentProvided: [],
+                            prevProvided: [],
+                            bySede: []
+                        };
                     }
-                    groups[key].v += val;
-                    groups[key].p += prev;
-                    groups[key].c += 1;
-                    groups[key].bySede.push({
-                        sede: sheet.n,
-                        value: val,
-                        formatted: tipo === 'CURSO' ? 'Impartido' : this.fmt(val, tipo)
-                    });
+
+                    const g = groups[key];
+                    g.hasCurrentValue = g.hasCurrentValue || hasCurrentValue;
+                    g.hasPrevValue = g.hasPrevValue || hasPrevValue;
+
+                    if (g.globalOnly) {
+                        if (hasCurrentValue) g.currentProvided.push(val);
+                        if (hasPrevValue) g.prevProvided.push(prev);
+                    } else {
+                        g.v += val;
+                        g.p += prev;
+                        g.c += 1;
+                        g.bySede.push({
+                            sede: sheet.n,
+                            value: val,
+                            formatted: tipo === 'CURSO' ? 'Impartido' : this.fmt(val, tipo)
+                        });
+                    }
                 });
             });
 
             let details = Object.values(groups).map((g, index) => {
-                const val = this.fSede === 'GLOBAL' && g.tipo === 'PORCENTAJE' ? g.v / g.c : g.v;
-                const prev = this.fSede === 'GLOBAL' && g.tipo === 'PORCENTAJE' ? g.p / g.c : g.p;
-                const dif = this.hasPrevMonth && prev !== 0 ? ((val - prev) / prev) * 100 : null;
+                if (g.globalOnly && !g.hasCurrentValue) return null;
+
+                let val;
+                let prev;
+                if (g.globalOnly) {
+                    // Si el absoluto global fue capturado en una hoja, se toma una sola vez.
+                    // Si por error se repite en más de una hoja, no se suma.
+                    val = g.currentProvided.length ? g.currentProvided[0] : 0;
+                    prev = g.prevProvided.length ? g.prevProvided[0] : 0;
+                } else {
+                    val = this.fSede === 'GLOBAL' && g.tipo === 'PORCENTAJE' && g.c > 0 ? g.v / g.c : g.v;
+                    prev = this.fSede === 'GLOBAL' && g.tipo === 'PORCENTAJE' && g.c > 0 ? g.p / g.c : g.p;
+                }
+
+                const dif = this.hasPrevMonth && g.hasPrevValue && prev !== 0 ? ((val - prev) / prev) * 100 : null;
                 const normalizedName = this.normalize(g.name);
                 return {
                     id: parentKey + '-child-' + index + '-' + normalizedName,
@@ -1116,16 +1236,23 @@ createApp({
                     tipo: g.tipo,
                     rawValue: val,
                     rawPrev: prev,
+                    hasCurrentValue: g.hasCurrentValue,
+                    hasPrevValue: g.hasPrevValue,
+                    globalOnly: g.globalOnly,
                     valorFormateado: g.tipo === 'CURSO' ? 'Impartido' : this.fmt(val, g.tipo),
                     prevFormateado: g.tipo === 'CURSO' ? '' : this.fmt(prev, g.tipo),
                     dif: g.tipo === 'CURSO' ? null : dif,
                     isCourse: g.tipo === 'CURSO',
-                    isFeatured: g.tipo !== 'CURSO' && (normalizedName.includes('NUMERODEPERSONAS') || normalizedName.includes('TOTAL')),
-                    bySede: g.bySede.filter(s => g.tipo !== 'CURSO' || s.value > 0),
+                    isFeatured: g.tipo !== 'CURSO' && (
+                        normalizedName.includes('NUMERODEPERSONAS') ||
+                        normalizedName.includes('NUMERODEINGRESOS') ||
+                        normalizedName.includes('TOTAL')
+                    ),
+                    bySede: g.globalOnly ? [] : g.bySede.filter(s => g.tipo !== 'CURSO' || s.value > 0),
                     barPct: 0,
                     sharePct: null
                 };
-            });
+            }).filter(Boolean);
 
             if (!details.length) return [];
             const numericDetails = details.filter(d => !d.isCourse);
@@ -1149,9 +1276,102 @@ createApp({
             return details;
         },
 
+        applyHierarchyOverrides(kpi) {
+            const key = this.normalize(kpi.nombre);
+
+            // Ingresos: el porcentaje sigue siendo el KPI principal;
+            // el número absoluto se muestra como información complementaria sólo a nivel GLOBAL.
+            if (key === 'INGRESOS' && this.fSede === 'GLOBAL') {
+                const absolute = kpi.children.find(c =>
+                    !c.isCourse &&
+                    c.hasCurrentValue &&
+                    this.normalize(c.nombre).includes('NUMERODEINGRESOS')
+                );
+                if (absolute) {
+                    kpi.supplementalText = this.fmt(absolute.rawValue, 'CONTEO') + ' ingresos';
+                }
+            }
+
+            // Vacaciones: cuando Capital Humano agregue un hijo numérico de personas,
+            // ese conteo reemplaza al porcentaje como valor principal y el comparativo
+            // se calcula contra el conteo del mes anterior.
+            if (key === 'VACACIONES') {
+                const absolute = kpi.children.find(c => {
+                    if (c.isCourse || !c.hasCurrentValue || c.tipo === 'PORCENTAJE') return false;
+                    const childKey = this.normalize(c.nombre);
+                    return childKey.includes('PERSONA') || childKey.includes('VACACION');
+                });
+
+                if (absolute) {
+                    kpi.rawValue = absolute.rawValue;
+                    kpi.rawPrev = absolute.rawPrev;
+                    kpi.valorFormateado = this.fmt(absolute.rawValue, 'CONTEO');
+                    kpi.prevFormateado = this.fmt(absolute.rawPrev, 'CONTEO');
+                    kpi.displayTipo = 'CONTEO';
+                    kpi.unitLabel = 'pers.';
+                    kpi.historySource = { type: 'CHILD', childName: absolute.nombre };
+                    kpi.dif = this.hasPrevMonth && absolute.hasPrevValue && absolute.rawPrev !== 0
+                        ? ((absolute.rawValue - absolute.rawPrev) / absolute.rawPrev) * 100
+                        : null;
+                    kpi.variationSuffix = '%';
+                    kpi.variationDecimals = 1;
+
+                    const delta = this.hasPrevMonth && absolute.hasPrevValue
+                        ? absolute.rawValue - absolute.rawPrev
+                        : null;
+                    kpi.deltaPersonasLabel = delta === null
+                        ? ''
+                        : (delta > 0 ? '+' : '') + this.fmt(delta, 'CONTEO') + ' pers.';
+
+                    if (kpi.dif !== null) {
+                        kpi.trendClass = this.normalize(kpi.signo) === 'MAXIMO'
+                            ? (kpi.dif <= 0 ? 'trend-good' : 'trend-bad')
+                            : (kpi.dif >= 0 ? 'trend-good' : 'trend-bad');
+                    }
+                }
+            }
+        },
+
+        getAggregatedChildForMonth(parentName, childName, monthName) {
+            const parentKey = this.normalize(parentName);
+            const childKey = this.normalize(childName);
+            const sheets = this.fSede === 'GLOBAL'
+                ? this.rawSheets
+                : this.rawSheets.filter(s => s.n === this.fSede);
+
+            let sum = 0;
+            const provided = [];
+
+            sheets.forEach(sheet => {
+                const s = sheet.schema;
+                if (s.jerarquia < 0) return;
+                sheet.rows.slice(1).forEach(row => {
+                    const hierarchy = this.normalize(row[s.jerarquia]);
+                    const name = this.normalize(row[s.kpi]);
+                    if (hierarchy !== parentKey || name !== childKey) return;
+                    if (!this.hasNumericMonthValue(sheet, row, monthName)) return;
+
+                    const val = this.getMonthValue(sheet, row, monthName);
+                    const globalOnly = parentKey === 'INGRESOS' && childKey.includes('NUMERODEINGRESOS');
+                    if (globalOnly) provided.push(val);
+                    else sum += val;
+                });
+            });
+
+            if (parentKey === 'INGRESOS' && childKey.includes('NUMERODEINGRESOS')) {
+                return provided.length ? provided[0] : 0;
+            }
+            return sum;
+        },
+
         getAggregatedKpiForMonth(kpi, monthName) {
             const sourceName = kpi.sourceKpiName || kpi.nombre;
             const sourceKey = this.normalize(sourceName);
+
+            if (kpi.historySource?.type === 'CHILD') {
+                return this.getAggregatedChildForMonth(sourceName, kpi.historySource.childName, monthName);
+            }
+
             const sheets = this.fSede === 'GLOBAL'
                 ? this.rawSheets
                 : this.rawSheets.filter(s => s.n === this.fSede);
@@ -1171,12 +1391,13 @@ createApp({
             });
 
             if (kpi.isBajas) {
-                const base = this.getPlantillaBaseForMonth(monthName).actual;
-                return base > 0 ? sum / base : 0;
+                return sum;
             }
 
             if (this.fSede === 'GLOBAL') {
-                const noPromediar = sourceKey.includes('SEGUIMIENTOAALERTASCONEMPLEADOSNUEVOS');
+                const noPromediar =
+                    sourceKey.includes('SEGUIMIENTOAALERTASCONEMPLEADOSNUEVOS') ||
+                    sourceKey.includes('DETECCIONYATENCIONDERIESGOSLABORALES');
                 let value = (kpi.tipo === 'PORCENTAJE' && !noPromediar && count > 0) ? sum / count : sum;
                 if (sourceKey.includes('AVISOSCOMUNICADOSYRECONOCIMIENTOS') || sourceKey.includes('EVENTOSDELMES')) value /= 2;
                 return value;
